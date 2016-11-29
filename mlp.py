@@ -35,7 +35,7 @@ def main():
     model.add(Dense(128, activation = opts.activ))
     model.add(Dense(10, activation = 'softmax'))
     model.compile(
-        loss='categorical_crossentropy',
+        loss='binary_crossentropy',
         optimizer='rmsprop',
         metrics=['accuracy']
     )
@@ -43,12 +43,15 @@ def main():
 
     model.fit(
         train[0], train[1],
-        batch_size=25,
+        batch_size=128,
         nb_epoch=30,
         validation_data=test
     )
 
-    score = model.evaluate(test[0], test[1])
+    score = model.evaluate(
+        test[0], test[1],
+        batch_size=128,
+    )
     print score
 
 if __name__ == '__main__':
