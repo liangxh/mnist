@@ -43,7 +43,7 @@ def main():
 
     model.fit(
         train[0], train[1],
-        batch_size=32,
+        batch_size=25,
         nb_epoch=30,
         validation_data=test
     )
