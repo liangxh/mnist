@@ -18,7 +18,7 @@ from keras.optimizers import SGD, RMSprop
 
 def adapt(XY):
     X, Y = XY
-    X = np.asarray(map(lambda x:x.flatten(), X))
+    X = np.asarray(map(lambda x:x.flatten(), X)) / 256
     Y = np_utils.to_categorical(map(int, Y), 10)
 
     return X, Y
@@ -71,22 +71,16 @@ def main():
         train[0], train[1],
         batch_size=128,
         nb_epoch=opts.epoch,
-        callbacks=[checkpoint,]
+        callbacks=[checkpoint,],
+        verbose=2,
     )
-
-
-    loss, acc = model.evaluate(train[0], train[1]); print
-    print 'TRAIN: Loss %.8f Accuracy %.8f'%(loss, acc)
-
-    loss, acc = model.evaluate(test[0], test[1]); print
-    print 'TEST: Loss %.8f Accuracy %.8f'%(loss, acc)
 
     model.load_weights(fname_weight)
 
-    loss, acc = model.evaluate(train[0], train[1]); print
+    loss, acc = model.evaluate(train[0], train[1], verbose=0)
     print 'TRAIN: Loss %.8f Accuracy %.8f'%(loss, acc)
 
-    loss, acc = model.evaluate(test[0], test[1]); print
+    loss, acc = model.evaluate(test[0], test[1], verbose=0)
     print 'TEST: Loss %.8f Accuracy %.8f'%(loss, acc)
 
 
