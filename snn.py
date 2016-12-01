@@ -13,7 +13,6 @@ from keras.models import Sequential
 from keras.layers import Dense
 from keras.utils import np_utils
 from keras.callbacks import ModelCheckpoint
-from keras.optimizers import SGD, RMSprop
 
 
 def adapt(XY):
@@ -28,31 +27,23 @@ def main():
     optparser = OptionParser()
     optparser.add_option('-n', '--n', dest='n', type='int', default=None)
     optparser.add_option('-e', '--epoch', dest='epoch', type='int', default=30)
-    optparser.add_option('-a', '--activation', dest='activ', default='sigmoid')
-
     opts, args = optparser.parse_args()
 
     model_name = __file__.split('/')[-1].split('.')[0]
-    fname_weight = 'model/%s_%s_weights.hdf5'%(model_name, opts.activ)
-    fname_config = 'model/%s_%s_config.json'%(model_name, opts.activ)
+    fname_weight = 'model/%s_weights.hdf5'%(model_name)
+    fname_config = 'model/%s_config.json'%(model_name)
 
     dataset = loader.load(opts.n)
     #test_labels = dataset[-1][1]
     train, test = tuple(map(adapt, dataset))
     
     model = Sequential()
-    model.add(Dense(64, activation = opts.activ, input_dim=784))
-    model.add(Dense(128, activation = opts.activ))
-    model.add(Dense(10, activation = 'softmax'))
-
-
-    #optimizer = SGD(lr=0.05, momentum=0.0, decay=0.0, nesterov=False)
-    #optimizer = RMSprop(lr=0.001)
-    optimizer = 'rmsprop'
-
+    model.add(Dense(64, activation = 'relu', input_dim=784, bias = False))
+    model.add(Dense(128, activation = 'relu', bias = False))
+    model.add(Dense(10, activation = 'softmax', bias = False))
     model.compile(
         loss='categorical_crossentropy',
-        optimizer=optimizer,
+        optimizer='rmsprop',
         metrics=['accuracy']
     )
 
@@ -73,13 +64,6 @@ def main():
         nb_epoch=opts.epoch,
         callbacks=[checkpoint,]
     )
-
-
-    loss, acc = model.evaluate(train[0], train[1]); print
-    print 'TRAIN: Loss %.8f Accuracy %.8f'%(loss, acc)
-
-    loss, acc = model.evaluate(test[0], test[1]); print
-    print 'TEST: Loss %.8f Accuracy %.8f'%(loss, acc)
 
     model.load_weights(fname_weight)
 

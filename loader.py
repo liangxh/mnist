@@ -196,11 +196,17 @@ def load_test_labels(idx_ubyte_file=test_labels_idx1_ubyte_file, n = None):
     return decode_idx1_ubyte(idx_ubyte_file, n)
 
 
-def load(n = None):
-    train = (load_train_images(n=n), load_train_labels(n=n))
-    test = (load_test_images(n=n), load_test_labels(n=n))
+def load_test(n = None):
+    return load_test_images(n=n), load_test_labels(n=n)
 
-    return train, test
+
+def load_train(n = None):
+    return load_train_images(n=n), load_train_labels(n=n)
+
+
+def load(n = None):
+    return load_train(n), load_test(n)
+
 
 if __name__ == '__main__':
     run()
