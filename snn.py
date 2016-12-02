@@ -5,49 +5,50 @@
 @created: 2016.11.29
 """
 
-import loader
 
 import numpy as np
+import math
 from optparse import OptionParser
 from keras.models import Sequential
-from keras.layers import Dense
+from keras.layers import Dense, Activation
 from keras.utils import np_utils
 from keras.callbacks import ModelCheckpoint
+from keras.optimizers import RMSprop
 
+import loader
+from optparse import OptionParser
 
 def adapt(XY):
     X, Y = XY
-    X = np.asarray(map(lambda x:x.flatten(), X)) / 256
+    X = np.asarray(map(lambda x:x.flatten(), X)).astype('float32') / 255
     Y = np_utils.to_categorical(map(int, Y), 10)
 
     return X, Y
-
 
 def main():
     optparser = OptionParser()
     optparser.add_option('-n', '--n', dest='n', type='int', default=None)
     optparser.add_option('-e', '--epoch', dest='epoch', type='int', default=30)
+    optparser.add_option('-b', '--bias', dest='bias', type='int', default=1)
     opts, args = optparser.parse_args()
 
-    model_name = __file__.split('/')[-1].split('.')[0]
-    fname_weight = 'model/%s_weights.hdf5'%(model_name)
-    fname_config = 'model/%s_config.json'%(model_name)
-
-    dataset = loader.load(opts.n)
-    #test_labels = dataset[-1][1]
+    dataset = loader.load()
+    gold = dataset[1][1]
     train, test = tuple(map(adapt, dataset))
-    
-    model = Sequential()
-    model.add(Dense(64, activation = 'relu', input_dim=784, bias = False))
-    model.add(Dense(128, activation = 'relu', bias = False))
-    model.add(Dense(10, activation = 'softmax', bias = False))
-    model.compile(
-        loss='categorical_crossentropy',
-        optimizer='rmsprop',
-        metrics=['accuracy']
-    )
 
-    open(fname_config, 'w').write(model.to_json())
+    model_name = __file__.split('/')[-1].split('.')[0]
+    fname_weight = 'model/%s_%d_weights.hdf5'%(model_name, opts.bias)
+    fname_config = 'model/%s_%d_config.json'%(model_name, opts.bias)
+
+    bias = (opts.bias == 1)
+    model = Sequential()
+    model.add(Dense(64, input_dim=784, activation='relu', bias = bias))
+    model.add(Dense(128, activation='relu', bias = bias))
+    model.add(Dense(10, activation='softmax', bias = bias))
+
+    model.compile(loss='categorical_crossentropy', 
+                  optimizer='rmsprop',
+                  metrics=['accuracy'])
 
     checkpoint = ModelCheckpoint(
         fname_weight,

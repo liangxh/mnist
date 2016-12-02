@@ -10,15 +10,15 @@ import loader
 import numpy as np
 from optparse import OptionParser
 from keras.models import Sequential
-from keras.layers.core import Dense, Activation, Dropout, Flatten
-from keras.layers import Convolution2D, MaxPooling2D
+from keras.layers import Dense, Activation
 from keras.utils import np_utils
 from keras.callbacks import ModelCheckpoint
+from keras.optimizers import RMSprop
 
 
 def adapt(XY):
     X, Y = XY
-    X = np.asarray(map(lambda x:x.reshape(28, 28, 1), X)) / 256
+    X = np.asarray(map(lambda x:x.flatten(), X)).astype('float32') / 255
     Y = np_utils.to_categorical(map(int, Y), 10)
 
     return X, Y
@@ -28,37 +28,31 @@ def main():
     optparser = OptionParser()
     optparser.add_option('-n', '--n', dest='n', type='int', default=None)
     optparser.add_option('-e', '--epoch', dest='epoch', type='int', default=30)
-    optparser.add_option('-a', '--activation', dest='activ', default='sigmoid')
-    optparser.add_option('-b', '--border', dest='border', default='same')
     opts, args = optparser.parse_args()
 
     model_name = __file__.split('/')[-1].split('.')[0]
-    fname_weight = 'model/%s_%s_weights.hdf5'%(model_name, opts.border)
-    fname_config = 'model/%s_%s_config.json'%(model_name, opts.border)
+    fname_weight = 'model/%s_weights.hdf5'%(model_name)
+    fname_config = 'model/%s_config.json'%(model_name)
 
     dataset = loader.load(opts.n)
     #test_labels = dataset[-1][1]
     train, test = tuple(map(adapt, dataset))
-        
+    
+    bias = True
+    
     model = Sequential()
-    model.add(Convolution2D(4, 3, 3, border_mode=opts.border, input_shape=(28, 28, 1)))
-    model.add(Activation('tanh'))
-    model.add(Dropout(0.25))
-    model.add(MaxPooling2D(pool_size=(2, 2)))  
+    model.add(Dense(64, input_shape=(784,)))
+    model.add(Activation('relu'))
 
-    model.add(Convolution2D(8, 3, 3, border_mode=opts.border))
-    model.add(Activation('tanh'))
-    model.add(Dropout(0.25))
-    model.add(MaxPooling2D(pool_size=(2, 2))) 
+    model.add(Dense(128))
+    model.add(Activation('relu'))
 
-    model.add(Flatten())
-    model.add(Dense(10, activation = 'softmax'))
+    model.add(Dense(10))
+    model.add(Activation('softmax'))
 
-    model.compile(
-        loss='categorical_crossentropy',
-        optimizer='rmsprop',
-        metrics=['accuracy']
-    )
+    model.compile(loss='categorical_crossentropy', 
+                  optimizer=RMSprop(),
+                  metrics=['accuracy'])
 
     open(fname_config, 'w').write(model.to_json())
 

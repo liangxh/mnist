@@ -3,3 +3,6 @@ model/*
 *.pyc
 *~
 *.pdf
+*.png
+*.doc
+

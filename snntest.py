@@ -16,37 +16,27 @@ import progbar
 
 from graph import Canvas
 
-def adapt(XY):
-    X, Y = XY
-    X = np.asarray(map(lambda x:x.flatten(), X))
-    Y = np_utils.to_categorical(map(int, Y), 10)
-
-    return X, Y
-
 
 class IFLayer:
     def __init__(self, W):
         self.W = W
         self.input_dim = self.W.shape[0]
         self.output_dim = self.W.shape[1]
-        self.reset()
 
-    def reset(self):
-        self.mem = np.zeros(self.output_dim)
+    def reset(self, n_sample):
+        self.mem = np.zeros((n_sample, self.output_dim))
 
     def sim(self, input_spikes, thr):
         dmem = np.dot(input_spikes, self.W)
-        #print dmem
 
         self.mem += dmem
-        #print self.mem[:15]
         spikes_idx = self.mem >= thr
 
         # reset
         self.mem[spikes_idx] = 0.
 
         # build output
-        output_spikes = np.zeros(self.output_dim)
+        output_spikes = np.zeros(self.mem.shape)
         output_spikes[spikes_idx] = 1.
         
         return output_spikes
@@ -69,60 +59,80 @@ class SNN:
         self.layers = []
         self.thr = 1.0
         self.dt = 0.001
-        self.duration = 0.04
-        self.max_rate = 400.
+        self.duration = 0.040
+        self.max_rate = 200.
         self.input_dim = 784
+        self.o = 0.
 
     def add(self, layer):
         self.layers.append(layer)
 
-    def reset(self):
+    def reset(self, input_dim):
         for layer in self.layers:
-            layer.reset()
+            layer.reset(input_dim)
 
-    def classify(self, x):
-        self.reset()
+    def classify(self, X, batch_size = 128, verbose=1):
+        idx_start = 0
+        n_sample = X.shape[0]
+        pred = []
+        
+        if verbose == 1:
+            pbar = progbar.start(int(math.ceil(float(n_sample) / batch_size)))
+            i = 0
+        
+        while idx_start < n_sample:
+            idx_end = idx_start + batch_size
+            pred.extend(self.classify_batch(X[idx_start:idx_end, :]).tolist())
 
-        x = np.asarray(x) / 255.
+            idx_start += batch_size
+
+            if verbose == 1:
+                i += 1
+                pbar.update(i)
+
+        if verbose == 1:
+            pbar.finish()
+
+        return pred
+        
+    def classify_batch(self, X):
+        n_sample = X.shape[0]
+        self.reset(n_sample)
         
         n_timestep = int(math.ceil(self.duration / self.dt))
         rescale_fac = 1. / (self.dt * self.max_rate);
 
-        spike_sum = np.zeros(10)
+        spike_sum = np.zeros((n_sample, 10))
 
         #canvas = Canvas(5, 8)
-
         for t in range(n_timestep):
-            spike_snapshot = np.random.random(self.input_dim) * rescale_fac
-
-            spikes = np.zeros(self.input_dim)
-            spikes[spike_snapshot <= x] = 1.
+            spike_snapshot = np.random.random(X.shape) * rescale_fac
+            
+            spikes = np.zeros(X.shape)
+            spikes[spike_snapshot <= X] = 1.
             #canvas.draw(spikes)
 
             for i, layer in enumerate(self.layers):
-                #print "> LAYER %d"%(i + 1)
-                spikes = layer.sim(spikes, self.thr)    
-                #print "spikes", spikes[:15]
-            
-            #print
+                spikes = layer.sim(spikes, self.thr)
+
             spike_sum += spikes
 
         #canvas.show()
-        #print spike_sum[:10]
+        c = np.sum(spike_sum ** 2, axis = 1)
+        self.o += np.sum(c == 0)
 
-        return np.argmax(spike_sum)
+        return np.argmax(spike_sum, axis = 1)
 
 
 def main():
     optparser = OptionParser()
     optparser.add_option('-n', '--n', dest='n', type='int', default=None)
-    optparser.add_option('-e', '--epoch', dest='epoch', type='int', default=30)
+    optparser.add_option('-b', '--bias', dest='bias', type='int', default=1)
     opts, args = optparser.parse_args()
 
     model_name = 'snn'
-    fname_weight = 'model/%s_weights.hdf5'%(model_name)
-    fname_config = 'model/%s_config.json'%(model_name)
-
+    fname_weight = 'model/%s_%d_weights.hdf5'%(model_name, opts.bias)
+    fname_config = 'model/%s_%d_config.json'%(model_name, opts.bias)
 
     f = h5py.File(fname_weight, 'r')
 
@@ -133,34 +143,13 @@ def main():
         snn.add(IFLayer.from_relu(W))
 
     test = loader.load_test(opts.n)
-    imgs, labels = test
-
-
-    model = model_from_json(open(fname_config, 'r').read())
-    model.load_weights(fname_weight)
-    model.compile(
-        loss='categorical_crossentropy',
-        optimizer='rmsprop',
-        metrics=['accuracy']
-    )
+    imgs, gold = test
 
     func_adapt = __import__(model_name, fromlist=['']).__dict__['adapt']
     X, Y = func_adapt(test)
-    print model.evaluate(X, Y, verbose=0)[1]
-    
-    pred = []
-    pbar = progbar.start(len(labels))
-    for i, img in enumerate(imgs):
-        x = img.flatten()
-        pred.append(snn.classify(x))
-        pbar.update(i + 1)
 
-    pbar.finish()
-
-    pred = np.asarray(pred)
-    gold = np.asarray(labels)
-    print float(np.sum(pred == gold)) / len(labels)
-
+    pred = snn.classify(X)
+    print float(np.sum(pred == gold)) / len(gold)
 
 if __name__ == '__main__':
     main()
