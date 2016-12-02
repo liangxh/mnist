@@ -43,12 +43,12 @@ def main():
     model = Sequential()
     model.add(Convolution2D(4, 3, 3, border_mode=opts.border, input_shape=(28, 28, 1)))
     model.add(Activation('tanh'))
-    model.add(Dropout(0.25))
+    #model.add(Dropout(0.25))
     model.add(MaxPooling2D(pool_size=(2, 2)))  
 
     model.add(Convolution2D(8, 3, 3, border_mode=opts.border))
     model.add(Activation('tanh'))
-    model.add(Dropout(0.25))
+    #model.add(Dropout(0.25))
     model.add(MaxPooling2D(pool_size=(2, 2))) 
 
     model.add(Flatten())
